@@ -1,0 +1,129 @@
+#!/bin/bash
+
+# Wardrobe for Memory Dealer/Stick House
+#
+# Copyright 2013 Tarim
+#
+# Version 0.21
+
+# Wardrobe is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Wardrobe is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+# 
+# You should have received a copy of the GNU Lesser General Public License
+# along with Wardrobe.  If not, see <http://www.gnu.org/licenses/>.
+
+#DEBUG=echo
+
+DesktopDir="${HOME}/Desktop"
+case "$1" in
+mother)
+    QuietTime=0.001
+    RepeatTime=
+    PirGPIO=$( hwctl gpionmb 9 )
+    Switch="up"
+    MainVideo="${DesktopDir}/Mother.mov"
+    ;;
+test)
+    QuietTime=0.001
+    RepeatTime=7
+    PirGPIO=7
+    Switch="down"
+    MainVideo="${DesktopDir}/Mother.mov"
+    ;;
+eve|*)
+    QuietTime=5
+    RepeatTime=23
+    PirGPIO=4
+    Switch=""
+    MainVideo="${DesktopDir}/Eve.mp4"
+    ;;
+esac
+
+
+VideoPlayerCmd="omxplayer --adev hdmi --hw"
+VideoPlayerProcs="omxplayer.bin"
+#VideoPlayerCmd="./omxtest"
+#VideoPlayerProcs="omxtest"
+
+RunMark="/tmp/wardroberunning"
+
+Poll=poll
+#Poll=cat
+HWctl=hwctl
+
+GPIOPath="/sys/class/gpio"
+PirPath="${GPIOPath}/gpio${PirGPIO}"
+PirFile="${PirPath}/value"
+#PirFile=/tmp/gpio
+PirRead="${Poll} ${PirFile}"
+
+# shopt -s nullglob
+# MainVideo="$( ls -rt ${DesktopDir}/*.{mov,mp4} 2>/dev/null | tail -1 )"
+
+log() {
+    echo "$*"
+}
+
+err() {
+    echo "$*" >&2
+    exit 1
+}
+
+startvideo() {
+    ${VideoPlayerCmd} "$1" < /dev/null >&2
+    pkill -f "${PirRead}"
+}
+
+[ -r "${PirFile}" ] || {
+    # turn cursor off and clear screen ready
+    sudo -s sh -c "TERM=linux setterm -blank 0 -cursor off -clear >/dev/tty1"
+
+    # GPIO input, edge triggered, pull up
+    sudo ${HWctl} export "${PirGPIO}" both ${Switch}
+    sudo ${HWctl} led 0 heartbeat
+
+    [ -r "${PirFile}" ] || {
+	err "Cannot read ${PirFile}"
+    }
+}
+
+rm -f "${RunMark}"
+while true; do
+    ${PirRead} | while
+	read ${Timeout:+-t} ${Timeout} Value
+	[ "$?" != 1 ]
+    do
+	log "pir V${Value} T${Timeout}"
+	case "${Value}" in
+	0)
+	    ${HWctl} led 0 1
+	    if [ -r "${RunMark}" ]; then
+		Timeout="${RepeatTime}"
+	    else
+		Timeout="${QuietTime}"
+	    fi
+	    ;;
+	"")
+	    log "play ${MainVideo}"
+	    Timeout=""
+	    touch "${RunMark}"
+	    startvideo "${MainVideo}" &
+	    ;;
+	1)
+	    log "stop"
+	    ${HWctl} led 0 0
+	    Timeout=""
+	    rm -f "${RunMark}"
+	    pkill -9 -x "${VideoPlayerProcs}"
+	    ;;
+	esac
+    done
+    log "pir EOF"
+done

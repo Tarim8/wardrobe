@@ -1,0 +1,37 @@
+Description:
+wardrobe is a sensor triggered video player for the Raspberry Pi with configurable timeouts and repeat plays.
+
+It is mainly bash scripts and, where possible, is compatible with any Linux system which has a /sys/class/gpio interface.
+
+
+Copyright/License:
+    Copyright Tarim 2013
+
+    Wardrobe is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Wardrobe is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with Wardrobe.  If not, see <http://www.gnu.org/licenses/>.
+
+
+Future hopes:
+  Support configuration files for the player
+  Move to dash instead of bash for busybox support
+  Provide deb package
+  Encourage more versatile /sys/class/gpio support (enable pull-up/pull down resistors if available?)
+  Rename it to something more descriptive than "wardrobe" - which comes from its original use as a Pepper's Ghost style illusion in a wardrobe for Rik Lander's "Memory Dealer"
+
+
+Parts list:
+  wardrobe - script to listen to the sensor and call the player - Tarim.
+  omxplayer - Edgar Hucek's video player for Raspberry Pi.
+  poll - blocked wait read of a sensor pin exported to /sys/class/gpio/gpioX/value file.  Contrary to its name, it _doesn't_ poll with a busy wait but goes blocked and waits for an interrupt.  Inspired by Radek "Mrkva" Pilari's gpio-irq-demo.c, - Tarim.
+  hwctl - a script to control hardware through /sys/class/gpio.  Can be used as a (limited) drop in replacement for gpio - Tarim.
+  gpio - Gordon Henderson's gpio pin control prograqm for the Raspberry Pi.  Called by hwctl when there is no /sys/class/gpio support for a feature.  (If you don't need pull-up/pull-down resistors then you can omit this.)

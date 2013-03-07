@@ -1,0 +1,61 @@
+#!/bin/bash
+
+echo "copydealer version 0.5" >&2
+#DEBUG=echo
+SUDO=sudo
+
+err() {
+    echo "$*" >&2
+    exit 1
+}
+
+# cleanup
+cleanup() {
+    sudo rm -f ${Dest}/usr/local/bin/omxtest ${Dest}/usr/local/bin/pictl
+    rm -f ${HomePi}/Desktop/mirror.mov
+}
+
+# copy everything
+setup() {
+    $DEBUG $SUDO sed -i 's/^[^#].*ttyAMA0/#&/' ${Dest}/etc/inittab
+    $DEBUG $SUDO install -v -m "u=rwx,go=rx" ${Src}/boot/* ${Dest}/boot
+    $DEBUG $SUDO install -v -m "u=rwx,go=rx" -o root -g root ${Src}/etc/* ${Dest}/etc
+    $DEBUG $SUDO install -v -m "ug=rwx,o=rx" -o root -g staff ${Src}/bin/* ${Dest}/usr/local/bin
+    $DEBUG $SUDO install -v -m "ug=rwx,o=rx" ${Src}/Desktop/* ${HomePi}/Desktop
+    [ "${Dest}" = "/" ] && {
+	$DEBUG $SUDO dpkg -i ${Src}/debs/*.deb
+	cd ${Src}/wiring
+	$DEBUG $SUDO ./build
+	cd -
+    }
+}
+
+# set the hostname
+sethostname() {
+    HostNameFile="${Dest}/etc/hostname"
+    HostsFile="${Dest}/etc/hosts"
+    CurrentHostName="$( cat ${HostNameFile} )"
+
+    read -ep "Hostname [${CurrentHostName}]: " NewHostName
+    [ -n "${NewHostName}" ] && {
+	Hostname="${Arg}"
+	$DEBUG $SUDO sed -i "s/${CurrentHostName}/${NewHostName}/" "${HostNameFile}" "${HostsFile}"
+	echo "Hostname: ${NewHostName}" >&2
+    }
+}
+
+
+# main
+
+[ -n "$1" ] && {
+    cd "$1" || {
+	err "No directory $1"
+    }
+}
+Src="$(pwd)"
+Dest="${2:-/}"
+HomePi="${Dest}/home/pi"
+
+sethostname
+cleanup
+setup
